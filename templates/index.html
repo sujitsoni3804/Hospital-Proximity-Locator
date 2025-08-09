@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hospital Proximity Locator</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 72 72%22><text y=%2258%22 font-size=%2260%22>🩺</text></svg>"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: #0d1b2a;
+        min-height: 100vh;
+        color: #333;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        color: white;
+      }
+      .header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+      .search-container {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+      }
+      .search-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: end;
+      }
+      .form-group {
+        flex: 1;
+        min-width: 200px;
+      }
+      .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+        font-size: 0.9rem;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: #f9fafb;
+      }
+      .form-group input:focus {
+        outline: none;
+        border-color: #e74c3c;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+      }
+      .search-btn {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+      }
+      .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+      }
+      .error {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #fecaca;
+        font-weight: 500;
+      }
+      .location-info {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        border-left: 4px solid #e74c3c;
+      }
+      .location-info h3 {
+        color: #e74c3c;
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+      .location-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        font-size: 0.9rem;
+      }
+      .location-detail {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .location-detail i {
+        color: #e74c3c;
+        width: 16px;
+      }
+      .radius-display {
+        color: #e74c3c;
+        font-weight: 600;
+      }
+      .results-table {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+      }
+      .table-scroll {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      #hospital_table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      #hospital_table thead {
+        background: #e74c3c;
+        color: white;
+      }
+      #hospital_table th,
+      #hospital_table td {
+        padding: 10px 12px;
+        text-align: left;
+      }
+      #hospital_table tbody tr:nth-child(even) {
+        background: #f9fafb;
+      }
+      #hospital_table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      #hospital_table td.actions {
+        white-space: nowrap;
+      }
+      #hospital_table td.actions .popup-btn {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+      }
+      .map-container {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+      #map {
+        height: 600px;
+        width: 100%;
+      }
+      .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+      .popup-content {
+        padding: 5px 0;
+      }
+      .popup-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #374151;
+        margin-bottom: 8px;
+      }
+      .popup-details {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-bottom: 10px;
+        line-height: 1.4;
+      }
+      .popup-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .popup-btn {
+        padding: 6px 12px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .popup-btn.route {
+        background: #e74c3c;
+        color: white;
+      }
+      .popup-btn.location {
+        background: #10b981;
+        color: white;
+      }
+      .popup-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      @media (max-width: 768px) {
+        .container {
+          padding: 15px;
+        }
+        .header h1 {
+          font-size: 2rem;
+        }
+        .search-form {
+          flex-direction: column;
+        }
+        .form-group {
+          min-width: 100%;
+        }
+        .location-details {
+          flex-direction: column;
+          gap: 10px;
+        }
+      }
+      /* 1. Make the table a block-level container */
+      #hospital_table {
+        display: block;
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      /* 2. Keep the header in normal table flow */
+      #hospital_table thead {
+        display: table;
+        width: 100%;
+        table-layout: fixed; /* ensures columns line up */
+      }
+
+      /* 3. Make tbody scrollable */
+      #hospital_table tbody {
+        display: block;
+        max-height: 400px; /* same as your .table-scroll height */
+        overflow-y: auto;
+      }
+
+      /* 4. Keep each row as a table so cells align */
+      #hospital_table tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+      }
+
+      /* 5. Stick the <th> to the top */
+      #hospital_table th {
+        position: sticky;
+        top: 0;
+        background: #e74c3c; /* match your themed header */
+        color: white;
+        z-index: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1><i class="fas fa-hospital"></i> Hospital Proximity Locator</h1>
+        <p>
+          Discover hospitals you can reach in minutes—type your city and let us
+          find the closest care.
+        </p>
+      </div>
+      <div class="search-container">
+        <form method="POST" autocomplete="off" class="search-form">
+          <div class="form-group">
+            <label for="location"
+              ><i class="fas fa-city"></i> Your City Location</label
+            >
+            <input
+              type="text"
+              name="location"
+              id="location"
+              list="citylist"
+              required
+              placeholder="Enter your city name..."
+              {%
+              if
+              searched_location
+              %}
+              value="{{ searched_location['City'] }}"
+              {%
+              endif
+              %}
+            />
+            <datalist id="citylist">
+              {% for city in all_cities %}
+              <option value="{{ city }}">{% endfor %}</option>
+            </datalist>
+          </div>
+          <div class="form-group">
+            <label for="radius_miles">
+              <i class="fas fa-ruler-combined"></i> Search Radius
+              <span id="radius_wrapper" style="margin-left:8px;display:none;">
+                (<span id="radius_display"></span> miles)
+              </span>
+            </label>
+
+            <input
+              type="number"
+              name="radius_miles"
+              id="radius_miles"
+              min="1"
+              max="1000"
+              step="1"
+              placeholder="Enter radius in miles"
+              required
+              onchange="(function(){ const v=this.value.trim(); document.getElementById('radius_display').innerText = v; document.getElementById('radius_wrapper').style.display = v ? 'inline-block' : 'none'; }).call(this)"
+              value="{{ radius_miles|default('') }}"
+            />
+          </div>
+
+          <button type="submit" class="search-btn">
+            <i class="fas fa-search"></i> Find Hospitals
+          </button>
+        </form>
+      </div>
+      {% if error %}
+      <div class="error">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+      </div>
+      {% endif %} {% if searched_location %}
+      <div class="location-info">
+        <h3><i class="fas fa-map-pin"></i> Your Location</h3>
+        <div class="location-details">
+          <div class="location-detail">
+            <i class="fas fa-city"></i
+            ><strong
+              >{{ searched_location['City'] }}, {{ searched_location['State']
+              }}</strong
+            >
+          </div>
+          <div class="location-detail">
+            <i class="fas fa-users"></i
+            ><span
+              >Population: {{ "{:,}".format(searched_location['Population']) if
+              searched_location['Population'] else 'N/A' }}</span
+            >
+          </div>
+          <div class="location-detail">
+            <i class="fas fa-map-marked"></i
+            ><span>County: {{ searched_location['County'] }}</span>
+          </div>
+          <div class="location-detail">
+            <i class="fas fa-hospital"></i
+            ><span>Found {{ nearby_hospitals|length }} hospitals nearby</span>
+          </div>
+        </div>
+      </div>
+      {% endif %} {% if nearby_hospitals %}
+      <div class="results-table">
+        <div class="table-scroll">
+          <table id="hospital_table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hospital</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Radial-Distance (miles)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in nearby_hospitals|sort(attribute='Distance_miles') %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ h['Name'] }}</td>
+                <td>{{ h['Type'] or 'N/A' }}</td>
+                <td>{{ h['Status'] or 'N/A' }}</td>
+                <td>{{ '%.2f' % h['Distance_miles'] }} miles</td>
+                <td class="actions">
+                  <a
+                    href="{{ h['Route_URL'] }}"
+                    target="_blank"
+                    class="popup-btn location"
+                  >
+                    <i class="fas fa-directions"></i> Get Directions
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      <div class="map-container"><div id="map"></div></div>
+    </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+      var map=L.map('map').setView([{{ center_lat }},{{ center_lon }}],10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'}).addTo(map);
+      map.zoomControl.setPosition('topright');
+      var nearbyLayer=L.layerGroup().addTo(map);
+      function createPopupContent(hospital){
+          return`
+              <div class="popup-content">
+                  <div class="popup-title">${hospital.Name}</div>
+                  <div class="popup-details">
+                      <i class="fas fa-map-marker-alt"></i> ${hospital.Address}<br>
+                      <i class="fas fa-city"></i> ${hospital.City}, ${hospital.State} ${hospital.ZIP}<br>
+                      <i class="fas fa-info-circle"></i> Type: ${hospital.Type||'N/A'}<br>
+                      <i class="fas fa-check-circle"></i> Status: ${hospital.Status||'N/A'}<br>
+                      <i class="fas fa-route"></i> Radial-Distance: ${hospital.Distance_miles.toFixed(2)} miles
+                  </div>
+                  <div class="popup-actions">
+                      <a href="${hospital.Route_URL}" target="_blank" class="popup-btn route"><i class="fas fa-directions"></i> Get Directions</a>
+                      <a href="${hospital.Google_Maps_URL}" target="_blank" class="popup-btn location"><i class="fas fa-map-pin"></i> View Location</a>
+                  </div>
+              </div>`;
+      }
+      {% if searched_location %}
+          var searchedMarker=L.marker([{{ searched_location['Latitude'] }},{{ searched_location['Longitude'] }}],{icon:L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowSize:[41,41]})}).addTo(map);
+          L.circle([{{ searched_location['Latitude'] }},{{ searched_location['Longitude'] }}],{color:'#e74c3c',fillColor:'#e74c3c',fillOpacity:0.1,radius:{{ radius_miles }}*1609.34}).addTo(map);
+          nearbyLayer.clearLayers();
+          var nearby={{ nearby_hospitals|tojson }};
+          var nearby = {{ nearby_hospitals|tojson }};
+          nearby.forEach(function(hospital) {
+              var marker = L.marker([hospital.Latitude, hospital.Longitude], {
+                  icon: L.icon({
+                      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+                      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                      iconSize: [25, 41],
+                      iconAnchor: [12, 41],
+                      popupAnchor: [1, -34],
+                      shadowSize: [41, 41]
+                  })
+              });
+
+              // Modified popup content with close button
+              var popupContent = `
+                  <div class="popup-content">
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                          <div class="popup-title">${hospital.Name}</div>
+                          <button class="popup-close-btn" style="
+                              background:none;
+                              border:none;
+                              font-size:16px;
+                              cursor:pointer;
+                              color:#e74c3c;
+                          " title="Close">&times;</button>
+                      </div>
+                      <div class="popup-details">
+                          <i class="fas fa-map-marker-alt"></i> ${hospital.Address}<br>
+                          <i class="fas fa-city"></i> ${hospital.City}, ${hospital.State} ${hospital.ZIP}<br>
+                          <i class="fas fa-info-circle"></i> Type: ${hospital.Type || 'N/A'}<br>
+                          <i class="fas fa-check-circle"></i> Status: ${hospital.Status || 'N/A'}<br>
+                          <i class="fas fa-route"></i> Radial-Distance: ${hospital.Distance_miles.toFixed(2)} miles
+                      </div>
+                      <div class="popup-actions">
+                          <a href="${hospital.Route_URL}" target="_blank" class="popup-btn route"><i class="fas fa-directions"></i> Get Directions</a>
+                          <a href="${hospital.Google_Maps_URL}" target="_blank" class="popup-btn location"><i class="fas fa-map-pin"></i> View Location</a>
+                      </div>
+                  </div>
+              `;
+
+              marker.on('click', function(e) {
+                  marker.bindPopup(popupContent, { closeButton: false }).openPopup();
+                  
+                  // Attach close button click
+                  setTimeout(() => {
+                      var btn = document.querySelector('.popup-close-btn');
+                      if (btn) {
+                          btn.addEventListener('click', () => {
+                              map.closePopup();
+                          });
+                      }
+                  }, 50);
+              });
+
+              marker.addTo(nearbyLayer);
+
+              // Keep your connecting line
+              L.polyline([
+                  [{{ searched_location['Latitude'] }}, {{ searched_location['Longitude'] }}],
+                  [hospital.Latitude, hospital.Longitude]
+              ], { color: '#e74c3c', weight: 2, opacity: 0.6 }).addTo(map);
+          });
+
+          // Close popup when clicking outside
+          map.on('click', function(e) {
+              if (!e.originalEvent.target.closest('.leaflet-popup')) {
+                  map.closePopup();
+              }
+          });
+      {% endif %}
+      document.addEventListener('DOMContentLoaded', function () {
+        var rInput = document.getElementById('radius_miles');
+        var rDisplay = document.getElementById('radius_display');
+        var rWrapper = document.getElementById('radius_wrapper');
+        if (!rInput || !rDisplay || !rWrapper) return;
+        var v = (rInput.value || '').trim();
+        rDisplay.innerText = v;
+        rWrapper.style.display = v ? 'inline-block' : 'none';
+      });
+    </script>
+  </body>
+</html>
